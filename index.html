@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foraging Tycoon</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+        }
+
+        #resources {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        #forage-btn, #hire-forager-btn, #save-btn, #load-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Foraging Tycoon</h1>
+    
+    <div id="resources">
+        <p>Wood: <span id="wood">0</span></p>
+        <p>Food: <span id="food">0</span></p>
+        <p>Foragers: <span id="foragers">0</span></p>
+    </div>
+
+    <button id="forage-btn" onclick="forage()">Forage</button>
+    <button id="hire-forager-btn" onclick="hireForager()">Hire Forager</button>
+    <button id="save-btn" onclick="saveGame()">Save Game</button>
+    <button id="load-btn" onclick="loadGame()">Load Game</button>
+
+    <script>
+        let wood = 0;
+        let food = 0;
+        let foragers = 0;
+
+        function updateResources() {
+            document.getElementById('wood').innerText = wood;
+            document.getElementById('food').innerText = food;
+            document.getElementById('foragers').innerText = foragers;
+        }
+
+        function forage() {
+            // Simulate foraging
+            const woodCollected = Math.floor(Math.random() * (5 + foragers)) + 1;
+            const foodCollected = Math.floor(Math.random() * (3 + foragers)) + 1;
+
+            // Update resources
+            wood += woodCollected;
+            food += foodCollected;
+
+            // Update UI
+            updateResources();
+            saveGame(); // Save after each forage
+        }
+
+        function hireForager() {
+            const hiringCost = 10 * Math.pow(2, foragers); // Cost increases exponentially
+            if (wood >= hiringCost) {
+                wood -= hiringCost;
+                foragers++;
+                updateResources();
+                saveGame(); // Save after hiring a forager
+            } else {
+                alert("Not enough wood to hire a forager!");
+            }
+        }
+
+        function saveGame() {
+            const gameData = {
+                wood: wood,
+                food: food,
+                foragers: foragers,
+            };
+
+            // Open a connection to the database
+            const request = indexedDB.open("foraging_tycoon_db", 1);
+
+            request.onerror = function(event) {
+                console.error("Error opening database:", event.target.error);
+            };
+
+            request.onsuccess = function(event) {
+                const db = event.target.result;
+
+                // Create a transaction and access the object store
+                const transaction = db.transaction(["game_data"], "readwrite");
+                const objectStore = transaction.objectStore("game_data");
+
+                // Clear existing data and add the new game data
+                const clearRequest = objectStore.clear();
+                clearRequest.onsuccess = function() {
+                    const addRequest = objectStore.add(gameData);
+                    addRequest.onsuccess = function() {
+                        console.log("Game data saved successfully!");
+                    };
+                    addRequest.onerror = function(event) {
+                        console.error("Error saving game data:", event.target.error);
+                    };
+                };
+                clearRequest.onerror = function(event) {
+                    console.error("Error clearing existing data:", event.target.error);
+                };
+
+                transaction.oncomplete = function() {
+                    db.close();
+                };
+            };
+        }
+
+        function loadGame() {
+            const request = indexedDB.open("foraging_tycoon_db", 1);
+
+            request.onerror = function(event) {
+                console.error("Error opening database:", event.target.error);
+            };
+
+            request.onsuccess = function(event) {
+                const db = event.target.result;
+
+                // Create a transaction and access the object store
+                const transaction = db.transaction(["game_data"]);
+                const objectStore = transaction.objectStore("game_data");
+
+                // Retrieve the game data
+                const getRequest = objectStore.get(1);
+                getRequest.onsuccess = function(event) {
+                    const savedGameData = event.target.result;
+
+                    if (savedGameData) {
+                        wood = savedGameData.wood;
+                        food = savedGameData.food;
+                        foragers = savedGameData.foragers;
+
+                        // Update the UI with the loaded data
+                        updateResources();
+                        console.log("Game data loaded successfully!");
+                    } else {
+                        console.log("No saved game data found.");
+                    }
+                };
+
+                transaction.oncomplete = function() {
+                    db.close();
+                };
+            };
+        }
+
+        // Automatic foraging by foragers
+        setInterval(function() {
+            const woodCollected = foragers * (Math.floor(Math.random() * 3) + 1);
+            const foodCollected = foragers * (Math.floor(Math.random() * 2) + 1);
+
+            // Update resources
+            wood += woodCollected;
+            food += foodCollected;
+
+            // Update UI
+            updateResources();
+            saveGame(); // Save after automatic foraging
+        }, 1000); // Automatic foraging every 5 seconds
+    </script>
+</body>
+</html>
